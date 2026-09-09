@@ -1,0 +1,189 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
+import { formatFCFA, formatDate } from '@/lib/format';
+import { ArrowLeft, Printer, Send, Edit2, Trash2, Loader2 } from 'lucide-react';
+import { createClient } from '@/utils/supabase/client';
+import { getInvoiceById, InvoiceWithDetails } from '@/lib/api/invoices';
+
+export default function InvoiceDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const invoiceId = params.id as string;
+  
+  const supabase = createClient();
+  const [invoice, setInvoice] = useState<InvoiceWithDetails | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (invoiceId) {
+      fetchInvoice();
+    }
+  }, [invoiceId]);
+
+  const fetchInvoice = async () => {
+    try {
+      setLoading(true);
+      const data = await getInvoiceById(supabase, invoiceId);
+      setInvoice(data);
+    } catch (error: any) {
+      console.error('Error fetching invoice:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  if (!invoice) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
+        <h2 className="text-2xl font-bold text-slate-900">Facture introuvable</h2>
+        <Button onClick={() => router.push('/invoices')} variant="outline">
+          <ArrowLeft size={16} className="mr-2" /> Retour aux factures
+        </Button>
+      </div>
+    );
+  }
+
+  const translateStatus = (status: string) => {
+    switch (status) {
+      case 'paid': return 'Payée';
+      case 'sent': return 'Envoyée';
+      case 'draft': return 'Brouillon';
+      case 'overdue': return 'En Retard';
+      default: return status;
+    }
+  };
+
+  const subtotal = invoice.amount - (invoice.tax_amount || 0);
+
+  return (
+    <div className="space-y-6 max-w-5xl mx-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => router.push('/invoices')}>
+            <ArrowLeft size={20} className="text-slate-500" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">{invoice.id}</h1>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-sm text-slate-500">Date d&apos;émission : {formatDate(invoice.date)}</span>
+              <span className="text-slate-300">•</span>
+              <Badge variant={invoice.status}>{translateStatus(invoice.status)}</Badge>
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-2 flex-wrap print:hidden">
+          <Button variant="outline" onClick={() => window.print()}><Printer size={16} className="mr-2" /> Imprimer / PDF</Button>
+          <Button variant="outline" onClick={() => router.push(`/invoices/${invoice.id}/edit`)}><Edit2 size={16} className="mr-2" /> Modifier</Button>
+          <Button variant="outline"><Send size={16} className="mr-2" /> Envoyer</Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-2 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Détails des lignes</CardTitle>
+            </CardHeader>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Description</TableHead>
+                    <TableHead className="text-right">Quantité</TableHead>
+                    <TableHead className="text-right">Prix Unitaire</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {invoice.invoice_items && invoice.invoice_items.length > 0 ? (
+                    invoice.invoice_items.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium text-slate-900">{item.description}</TableCell>
+                        <TableCell className="text-right text-slate-600">{item.quantity}</TableCell>
+                        <TableCell className="text-right text-slate-600">{formatFCFA(item.unit_price)}</TableCell>
+                        <TableCell className="text-right font-medium text-slate-900">{formatFCFA(item.quantity * item.unit_price)}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={4} className="h-24 text-center text-slate-500">
+                        Aucune ligne détaillée. (Total simple)
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="w-full sm:w-1/2 ml-auto space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Sous-total</span>
+                  <span className="font-medium text-slate-900">{formatFCFA(subtotal)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">TVA (18%)</span>
+                  <span className="font-medium text-slate-900">{formatFCFA(invoice.tax_amount || 0)}</span>
+                </div>
+                <div className="pt-3 border-t border-slate-200 flex justify-between">
+                  <span className="font-bold text-slate-900">Total TTC</span>
+                  <span className="font-bold text-xl text-blue-600">{formatFCFA(invoice.amount)}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Informations Client</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="text-sm font-medium text-slate-500">Nom</p>
+                <p className="font-medium text-slate-900">{invoice.clients.name}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-500">Email</p>
+                <p className="text-slate-900">{invoice.clients.email || 'Non renseigné'}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-500">Adresse</p>
+                <p className="text-slate-900">{invoice.clients.address || 'Non renseignée'}</p>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Échéance</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 text-sm">Date d&apos;échéance</span>
+                <span className="font-medium text-slate-900">{formatDate(invoice.due_date)}</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
