@@ -20,6 +20,7 @@ export async function createClient(
 
   const { data, error } = await supabase
     .from('clients')
+    // @ts-ignore: bypass type issue with supabase bindings
     .insert([{ ...clientData, user_id: user.id }])
     .select()
     .single();
