@@ -46,8 +46,12 @@ export default function LoginPage() {
         setIsLogin(true);
       }
       
-    } catch (err: any) {
-      setError(err.message || 'Une erreur est survenue');
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message || 'Une erreur est survenue');
+      } else {
+        setError('Une erreur est survenue');
+      }
     } finally {
       setLoading(false);
     }
@@ -184,7 +188,7 @@ export default function LoginPage() {
             Simplifiez votre facturation.
           </h2>
           <p className="text-xl text-blue-100 max-w-2xl">
-            Facturio est l'outil indispensable pour les indépendants. Gérez vos clients, émettez vos factures et suivez vos paiements sur une plateforme élégante et sécurisée.
+            Facturio est l&apos;outil indispensable pour les indépendants. Gérez vos clients, émettez vos factures et suivez vos paiements sur une plateforme élégante et sécurisée.
           </p>
           
           {/* Dashboard Preview Mockup */}

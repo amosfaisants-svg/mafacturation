@@ -26,6 +26,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     fetchSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchSettings = async () => {
@@ -120,13 +121,13 @@ export default function SettingsPage() {
             <CardHeader className="pb-4 border-b border-slate-100">
               <CardTitle className="flex items-center gap-2">
                 <Building size={20} className="text-blue-600" />
-                Informations de l'entreprise
+                Informations de l&apos;entreprise
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Nom de l'entreprise</label>
+                  <label className="text-sm font-medium text-slate-700">Nom de l&apos;entreprise</label>
                   <Input 
                     value={formData.company_name} 
                     onChange={e => setFormData({...formData, company_name: e.target.value})} 
