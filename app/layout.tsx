@@ -1,13 +1,19 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
-import Sidebar from '@/components/layout/Sidebar';
-import Topbar from '@/components/layout/Topbar';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ 
+  subsets: ['latin'],
+  variable: '--font-inter',
+});
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  variable: '--font-plus-jakarta',
+});
 
 export const metadata: Metadata = {
-  title: 'SaaS de Facturation',
+  title: 'Mafacture - Logiciel de Facturation',
   description: 'Création et gestion de factures',
 };
 
@@ -17,22 +23,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr">
-      <body className={`${inter.className} bg-slate-50 text-slate-900 antialiased`}>
-        <div className="flex h-screen overflow-hidden">
-          {/* Sidebar for Desktop */}
-          <Sidebar className="hidden md:flex" />
-          
-          <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Topbar for Mobile & Search/Profile */}
-            <Topbar />
-            
-            {/* Main Content Area */}
-            <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
-              {children}
-            </main>
-          </div>
-        </div>
+    <html lang="fr" className={`${inter.variable} ${plusJakartaSans.variable}`}>
+      <head>
+        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL,GRAD@100..700,0..1,0&display=swap" rel="stylesheet" />
+      </head>
+      <body className="antialiased">
+        {children}
       </body>
     </html>
   );
