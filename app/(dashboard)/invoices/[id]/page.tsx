@@ -21,6 +21,7 @@ export default function InvoiceDetailPage() {
   const [invoice, setInvoice] = useState<InvoiceWithDetails | null>(null);
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isSharing, setIsSharing] = useState(false);
 
   useEffect(() => {
     if (invoiceId) {
@@ -80,17 +81,56 @@ export default function InvoiceDetailPage() {
     
     const text = `Bonjour,\n\nVoici les détails de votre facture ${invoice.id} d'un montant total de ${formatFCFA(invoice.amount)}.\nDate d'échéance : ${formatDate(invoice.due_date)}.\n\nMerci de votre confiance.`;
     
-    if (navigator.share) {
+    if (navigator.share && navigator.canShare) {
       try {
-        await navigator.share({
-          title: `Facture ${invoice.id}`,
-          text: text,
-        });
+        setIsSharing(true);
+        const element = document.getElementById('invoice-print-container');
+        
+        if (element) {
+          // Temporairement afficher l'élément pour html2pdf
+          element.classList.remove('hidden');
+          element.classList.add('block');
+          
+          // Import dynamique car html2pdf utilise window/document
+          // @ts-ignore
+          const html2pdf = (await import('html2pdf.js')).default;
+          
+          const opt = {
+            margin:       0,
+            filename:     `Facture_${invoice.id}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2 },
+            jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+          };
+
+          const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
+          
+          element.classList.remove('block');
+          element.classList.add('hidden');
+
+          const file = new File([pdfBlob], `Facture_${invoice.id}.pdf`, { type: 'application/pdf' });
+
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: `Facture ${invoice.id}`,
+              text: text,
+            });
+          } else {
+            // Partage simple si le partage de fichier n'est pas supporté (vieux tel, certains navigateurs PC)
+            await navigator.share({
+              title: `Facture ${invoice.id}`,
+              text: text,
+            });
+          }
+        }
       } catch (err) {
         console.log('Partage annulé ou erreur:', err);
+      } finally {
+        setIsSharing(false);
       }
     } else {
-      // Fallback (mailto) si la Web Share API n'est pas supportée sur ce navigateur (ex: desktop non-mac)
+      // Fallback (mailto) si la Web Share API n'est pas supportée
       const mailtoLink = `mailto:${invoice.clients?.email || ''}?subject=Facture ${invoice.id}&body=${encodeURIComponent(text)}`;
       window.location.href = mailtoLink;
     }
@@ -116,7 +156,10 @@ export default function InvoiceDetailPage() {
         <div className="flex gap-2 flex-wrap print:hidden">
           <Button variant="outline" onClick={() => window.print()}><Printer size={16} className="mr-2" /> Imprimer / PDF</Button>
           <Button variant="outline" onClick={() => router.push(`/invoices/${invoice.id}/edit`)}><Edit2 size={16} className="mr-2" /> Modifier</Button>
-          <Button variant="outline" onClick={handleShare}><Send size={16} className="mr-2" /> Envoyer</Button>
+          <Button variant="outline" onClick={handleShare} disabled={isSharing}>
+            {isSharing ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Send size={16} className="mr-2" />} 
+            {isSharing ? 'Préparation...' : 'Envoyer'}
+          </Button>
         </div>
       </div>
 
@@ -215,7 +258,7 @@ export default function InvoiceDetailPage() {
     </div>
 
       {/* PRINT ONLY UI */}
-      <div className="hidden print:block w-full bg-white text-slate-900">
+      <div id="invoice-print-container" className="hidden print:block w-full bg-white text-slate-900">
         <div className="flex justify-between items-start mb-12">
           <div>
             <h2 className="text-3xl font-bold text-slate-900 tracking-tight">FACTURE</h2>
