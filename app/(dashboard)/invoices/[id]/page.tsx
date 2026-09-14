@@ -96,10 +96,10 @@ export default function InvoiceDetailPage() {
           const html2pdf = (await import('html2pdf.js')).default;
           
           const opt = {
-            margin:       0,
+            margin:       0.25,
             filename:     `Facture_${invoice.id}.pdf`,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2 },
+            html2canvas:  { scale: 2, windowWidth: 800 },
             jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
           };
 
@@ -258,7 +258,7 @@ export default function InvoiceDetailPage() {
     </div>
 
       {/* PRINT ONLY UI */}
-      <div id="invoice-print-container" className="hidden print:block w-full bg-white text-slate-900">
+      <div id="invoice-print-container" className="hidden print:block w-full max-w-[800px] mx-auto bg-white text-slate-900 p-8">
         <div className="flex justify-between items-start mb-12">
           <div>
             <h2 className="text-3xl font-bold text-slate-900 tracking-tight">FACTURE</h2>
