@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/utils/supabase/client';
 import { 
@@ -31,6 +32,15 @@ export default function Sidebar({ className, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    fetchUser();
+  }, [supabase.auth]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -93,11 +103,10 @@ export default function Sidebar({ className, onClose }: SidebarProps) {
 
       <div className="p-4 border-t border-slate-100">
         <div className="flex items-center gap-3 px-2 mb-3">
-          <div className="w-10 h-10 rounded-full bg-slate-200 flex-shrink-0 overflow-hidden relative">
-            <Image src="https://i.pravatar.cc/150?u=a042581f4e29026024d" alt="User avatar" fill className="object-cover" />
-          </div>
           <div className="overflow-hidden">
-            <p className="text-sm font-medium text-slate-900 truncate">Utilisateur</p>
+            <p className="text-sm font-medium text-slate-900 truncate">
+              {user ? (user.user_metadata?.full_name || user.email) : 'Chargement...'}
+            </p>
             <p className="text-xs text-slate-500 truncate">Connecté</p>
           </div>
         </div>

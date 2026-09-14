@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { Save, User, Building, Bell, Loader2 } from 'lucide-react';
+import { Save, User, Building, Bell, Loader2, Upload } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { getSettings, updateSettings } from '@/lib/api/settings';
 
@@ -13,6 +13,7 @@ export default function SettingsPage() {
   const supabase = createClient();
   const [isSaving, setIsSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     full_name: '',
@@ -21,7 +22,9 @@ export default function SettingsPage() {
     siret: '',
     address: '',
     currency: 'XOF',
-    language: 'fr'
+    language: 'fr',
+    logo_url: '',
+    phone: ''
   });
 
   useEffect(() => {
@@ -40,7 +43,9 @@ export default function SettingsPage() {
         siret: data.siret || '',
         address: data.address || '',
         currency: data.currency || 'XOF',
-        language: data.language || 'fr'
+        language: data.language || 'fr',
+        logo_url: data.logo_url || '',
+        phone: data.phone || ''
       });
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -59,6 +64,21 @@ export default function SettingsPage() {
       alert('Erreur lors de l\'enregistrement des paramètres');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 4 * 1024 * 1024) {
+        alert("L'image est trop volumineuse. La taille maximum est de 4Mo.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData({ ...formData, logo_url: reader.result as string });
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -146,6 +166,52 @@ export default function SettingsPage() {
                     value={formData.address} 
                     onChange={e => setFormData({...formData, address: e.target.value})} 
                   />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-sm font-medium text-slate-700">Numéros de téléphone de l&apos;entreprise</label>
+                  <Input 
+                    value={formData.phone} 
+                    onChange={e => setFormData({...formData, phone: e.target.value})} 
+                    placeholder="Ex: +225 0102030405"
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-sm font-medium text-slate-700">Logo de l&apos;entreprise</label>
+                  <div className="flex items-center gap-4">
+                    {formData.logo_url && (
+                      <div className="h-16 w-16 relative rounded-lg border border-slate-200 overflow-hidden bg-slate-50 flex items-center justify-center p-1">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={formData.logo_url} alt="Logo" className="max-h-full max-w-full object-contain" />
+                      </div>
+                    )}
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      onChange={handleLogoUpload} 
+                      accept="image/*" 
+                      className="hidden" 
+                    />
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="gap-2"
+                    >
+                      <Upload size={16} />
+                      {formData.logo_url ? 'Changer de logo' : 'Importer un logo'}
+                    </Button>
+                    {formData.logo_url && (
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        onClick={() => setFormData({ ...formData, logo_url: '' })}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 px-2"
+                      >
+                        Supprimer
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500">Formats acceptés : JPG, PNG. Poids max : 4Mo.</p>
                 </div>
               </div>
             </CardContent>

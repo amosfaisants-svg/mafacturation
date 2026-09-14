@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { getClients } from '@/lib/api/clients';
 import { createInvoice } from '@/lib/api/invoices';
+import { getSettings } from '@/lib/api/settings';
 import { Database } from '@/lib/database.types';
 
 type ClientRow = Database['public']['Tables']['clients']['Row'];
@@ -21,6 +22,7 @@ export default function CreateInvoicePage() {
   const supabase = createClient();
   
   const [clients, setClients] = useState<ClientRow[]>([]);
+  const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -40,10 +42,14 @@ export default function CreateInvoicePage() {
   const fetchClients = async () => {
     try {
       setLoading(true);
-      const data = await getClients(supabase);
-      setClients(data);
+      const [clientsData, settingsData] = await Promise.all([
+        getClients(supabase),
+        getSettings(supabase)
+      ]);
+      setClients(clientsData);
+      setSettings(settingsData);
     } catch (error) {
-      console.error('Error fetching clients:', error);
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
@@ -229,17 +235,24 @@ export default function CreateInvoicePage() {
               <h2 className="text-3xl font-bold text-slate-900 tracking-tight">FACTURE</h2>
               <p className="text-slate-500 mt-1"># FAC-A-VENIR</p>
             </div>
-            <div className="w-12 h-12 bg-slate-900 rounded-xl flex items-center justify-center text-white">
-              <FileText size={24} />
-            </div>
+            {settings?.logo_url ? (
+              <div className="h-16 w-48 relative flex items-center justify-end">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={settings.logo_url} alt="Logo entreprise" className="max-h-full max-w-full object-contain" />
+              </div>
+            ) : (
+              <div className="w-12 h-12 bg-slate-900 rounded-xl flex items-center justify-center text-white">
+                <FileText size={24} />
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-8 mb-12 text-sm">
             <div>
               <p className="text-slate-400 font-medium mb-2">De :</p>
-              <p className="font-semibold text-slate-900">Facturio S.A.</p>
-              <p className="text-slate-600">contact@facturio.com</p>
-              <p className="text-slate-600">Dakar, Senegal</p>
+              <p className="font-semibold text-slate-900">{settings?.company_name || 'Facturio S.A.'}</p>
+              <p className="text-slate-600">{settings?.email || 'contact@facturio.com'}</p>
+              <p className="text-slate-600">{settings?.address || 'Adresse non renseignée'}</p>
             </div>
             <div>
               <p className="text-slate-400 font-medium mb-2">À :</p>
@@ -305,7 +318,12 @@ export default function CreateInvoicePage() {
           </div>
 
           <div className="mt-24 pt-8 border-t border-slate-200 text-xs text-slate-400 text-center">
-            Note: Les paiements en retard peuvent entraîner des pénalités selon la loi en vigueur.
+            <p className="mb-2">Note: Les paiements en retard peuvent entraîner des pénalités selon la loi en vigueur.</p>
+            {settings && (
+              <p className="font-medium text-slate-500 mt-2">
+                {settings.company_name} • {settings.address} {settings.phone ? `• ${settings.phone}` : ''} • {settings.email}
+              </p>
+            )}
           </div>
         </div>
       </div>

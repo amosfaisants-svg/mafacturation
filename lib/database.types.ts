@@ -107,6 +107,8 @@ export interface Database {
           address: string | null
           currency: string | null
           language: string | null
+          logo_url: string | null
+          phone: string | null
           created_at: string
         }
         Insert: {
@@ -119,6 +121,8 @@ export interface Database {
           address?: string | null
           currency?: string | null
           language?: string | null
+          logo_url?: string | null
+          phone?: string | null
           created_at?: string
         }
         Update: {
@@ -131,6 +135,8 @@ export interface Database {
           address?: string | null
           currency?: string | null
           language?: string | null
+          logo_url?: string | null
+          phone?: string | null
           created_at?: string
         }
       }

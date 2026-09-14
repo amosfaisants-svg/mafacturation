@@ -11,6 +11,7 @@ import { FileText, Loader2, ArrowRight } from 'lucide-react';
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +37,11 @@ export default function LoginPage() {
         router.push('/dashboard');
         router.refresh();
       } else {
+        if (password !== confirmPassword) {
+          setError('Les mots de passe ne correspondent pas.');
+          setLoading(false);
+          return;
+        }
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -112,6 +118,23 @@ export default function LoginPage() {
                 </div>
               </div>
               
+              {!isLogin && (
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword" className="text-slate-700">Confirmer le mot de passe</Label>
+                  <div className="mt-1">
+                    <Input 
+                      id="confirmPassword" 
+                      type="password" 
+                      required 
+                      placeholder="••••••••"
+                      className="block w-full rounded-xl border-slate-200 focus:border-blue-500 focus:ring-blue-500 bg-slate-50/50 py-2.5 transition-colors"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+
               {error && (
                 <div className="rounded-lg bg-red-50 p-4 border border-red-100 animate-in fade-in slide-in-from-top-1">
                   <div className="flex">
@@ -165,6 +188,7 @@ export default function LoginPage() {
                     setIsLogin(!isLogin);
                     setError(null);
                     setSuccess(null);
+                    setConfirmPassword('');
                   }}
                   className="text-sm font-medium text-blue-600 hover:text-blue-500 transition-colors"
                 >
