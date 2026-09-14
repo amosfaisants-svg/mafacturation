@@ -10,14 +10,23 @@ export type InvoiceWithDetails = InvoiceWithClient & {
   invoice_items: Database['public']['Tables']['invoice_items']['Row'][];
 };
 
-export async function getInvoices(supabase: SupabaseClient<Database>) {
-  const { data, error } = await supabase
+export async function getInvoices(supabase: SupabaseClient<Database>, startDate?: string, endDate?: string) {
+  let query = supabase
     .from('invoices')
     .select(`
       *,
       clients (*)
     `)
     .order('created_at', { ascending: false });
+
+  if (startDate) {
+    query = query.gte('date', startDate);
+  }
+  if (endDate) {
+    query = query.lte('date', endDate);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw error;
   return data as unknown as InvoiceWithClient[];

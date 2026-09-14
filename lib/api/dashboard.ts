@@ -2,10 +2,19 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Database } from '../database.types';
 
-export async function getDashboardStats(supabase: SupabaseClient<Database>) {
-  const { data: invoices, error } = await supabase
+export async function getDashboardStats(supabase: SupabaseClient<Database>, startDate?: string, endDate?: string) {
+  let query = supabase
     .from('invoices')
     .select('amount, status');
+
+  if (startDate) {
+    query = query.gte('date', startDate);
+  }
+  if (endDate) {
+    query = query.lte('date', endDate);
+  }
+
+  const { data: invoices, error } = await query;
 
   if (error) throw error;
 

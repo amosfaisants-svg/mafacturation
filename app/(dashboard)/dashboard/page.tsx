@@ -14,18 +14,31 @@ export default function DashboardPage() {
   const [invoices, setInvoices] = useState<InvoiceWithClient[]>([]);
   const [stats, setStats] = useState({ totalInvoiced: 0, totalPaid: 0, totalPending: 0, totalOverdue: 0 });
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const supabase = createClient();
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const fetchData = async () => {
+  useEffect(() => {
+    if (!loading) {
+      fetchData(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startDate, endDate]);
+
+  const fetchData = async (isBackground = false) => {
     try {
-      setLoading(true);
+      if (!isBackground) setLoading(true);
+      else setStatsLoading(true);
+      
       const [statsData, invoicesData] = await Promise.all([
-        getDashboardStats(supabase),
-        getInvoices(supabase)
+        getDashboardStats(supabase, startDate || undefined, endDate || undefined),
+        getInvoices(supabase, startDate || undefined, endDate || undefined)
       ]);
       setStats(statsData);
       setInvoices(invoicesData.slice(0, 5)); // Just the 5 most recent
@@ -33,6 +46,7 @@ export default function DashboardPage() {
       console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
+      setStatsLoading(false);
     }
   };
 
@@ -43,8 +57,7 @@ export default function DashboardPage() {
       setInvoices(invoices.map(inv => inv.id === id ? { ...inv, status: newStatus } : inv));
       
       // Update stats to keep them in sync
-      const statsData = await getDashboardStats(supabase);
-      setStats(statsData);
+      fetchData(true);
     } catch (error) {
       console.error('Error updating status:', error);
     }
@@ -91,9 +104,32 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-        <p className="text-sm text-slate-500">Bienvenue, voici le résumé de votre activité.</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+          <p className="text-sm text-slate-500">Bienvenue, voici le résumé de votre activité.</p>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <div className="flex items-center space-x-2 bg-white border border-slate-200 rounded-lg p-1.5 shadow-sm">
+            <input 
+              type="date" 
+              value={startDate} 
+              onChange={(e) => setStartDate(e.target.value)} 
+              className="text-sm border-none bg-transparent outline-none px-2 py-1 text-slate-600 cursor-pointer"
+              title="Date de début"
+            />
+            <span className="text-slate-300">au</span>
+            <input 
+              type="date" 
+              value={endDate} 
+              onChange={(e) => setEndDate(e.target.value)} 
+              className="text-sm border-none bg-transparent outline-none px-2 py-1 text-slate-600 cursor-pointer"
+              title="Date de fin"
+            />
+          </div>
+          {statsLoading && <Loader2 size={16} className="animate-spin text-blue-600" />}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
