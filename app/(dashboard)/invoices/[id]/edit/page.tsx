@@ -12,6 +12,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { getClients } from '@/lib/api/clients';
 import { getInvoiceById, updateInvoice, InvoiceWithDetails } from '@/lib/api/invoices';
+import { getSettings } from '@/lib/api/settings';
 import { Database } from '@/lib/database.types';
 
 type ClientRow = Database['public']['Tables']['clients']['Row'];
@@ -23,6 +24,7 @@ export default function EditInvoicePage() {
   const supabase = createClient();
   
   const [clients, setClients] = useState<ClientRow[]>([]);
+  const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -41,11 +43,13 @@ export default function EditInvoicePage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [clientsData, invoiceData] = await Promise.all([
+      const [clientsData, invoiceData, settingsData] = await Promise.all([
         getClients(supabase),
-        getInvoiceById(supabase, invoiceId)
+        getInvoiceById(supabase, invoiceId),
+        getSettings(supabase)
       ]);
       setClients(clientsData);
+      setSettings(settingsData);
       
       setInvoice(invoiceData);
       setClientId(invoiceData.client_id);
@@ -73,7 +77,22 @@ export default function EditInvoicePage() {
     return items.reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0);
   }, [items]);
   
-  const taxAmount = useMemo(() => subtotal * 0.18, [subtotal]);
+  const vatRate = useMemo(() => {
+    const siret = settings?.siret || '';
+    const match = siret.match(/(\d+(?:[.,]\d+)?)\s*%/);
+    if (match) {
+      const val = parseFloat(match[1].replace(',', '.'));
+      if (!isNaN(val)) return val / 100;
+    }
+    const exactMatch = siret.trim().match(/^(\d+(?:[.,]\d+)?)$/);
+    if (exactMatch) {
+       const val = parseFloat(exactMatch[1].replace(',', '.'));
+       if (!isNaN(val) && val <= 100) return val / 100;
+    }
+    return 0.18;
+  }, [settings?.siret]);
+
+  const taxAmount = useMemo(() => subtotal * vatRate, [subtotal, vatRate]);
   const total = useMemo(() => subtotal + taxAmount, [subtotal, taxAmount]);
 
   const handleSave = async (status?: 'draft' | 'sent') => {
@@ -324,7 +343,7 @@ export default function EditInvoicePage() {
               <span className="font-medium text-slate-900">{formatFCFA(subtotal)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500">TVA (18%)</span>
+              <span className="text-slate-500">TVA ({vatRate * 100}%)</span>
               <span className="font-medium text-slate-900">{formatFCFA(taxAmount)}</span>
             </div>
             <div className="pt-3 border-t-2 border-slate-900 flex justify-between">

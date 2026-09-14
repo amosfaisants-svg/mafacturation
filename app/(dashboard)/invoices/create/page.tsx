@@ -59,7 +59,22 @@ export default function CreateInvoicePage() {
     return items.reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0);
   }, [items]);
   
-  const taxAmount = useMemo(() => subtotal * 0.18, [subtotal]);
+  const vatRate = useMemo(() => {
+    const siret = settings?.siret || '';
+    const match = siret.match(/(\d+(?:[.,]\d+)?)\s*%/);
+    if (match) {
+      const val = parseFloat(match[1].replace(',', '.'));
+      if (!isNaN(val)) return val / 100;
+    }
+    const exactMatch = siret.trim().match(/^(\d+(?:[.,]\d+)?)$/);
+    if (exactMatch) {
+       const val = parseFloat(exactMatch[1].replace(',', '.'));
+       if (!isNaN(val) && val <= 100) return val / 100;
+    }
+    return 0.18;
+  }, [settings?.siret]);
+
+  const taxAmount = useMemo(() => subtotal * vatRate, [subtotal, vatRate]);
   const total = useMemo(() => subtotal + taxAmount, [subtotal, taxAmount]);
 
   const handleSave = async (status: 'draft' | 'sent' = 'sent') => {
@@ -308,7 +323,7 @@ export default function CreateInvoicePage() {
               <span className="font-medium text-slate-900">{formatFCFA(subtotal)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500">TVA (18%)</span>
+              <span className="text-slate-500">TVA ({vatRate * 100}%)</span>
               <span className="font-medium text-slate-900">{formatFCFA(taxAmount)}</span>
             </div>
             <div className="pt-3 border-t-2 border-slate-900 flex justify-between">

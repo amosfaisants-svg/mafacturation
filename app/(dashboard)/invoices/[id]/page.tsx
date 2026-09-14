@@ -75,6 +75,7 @@ export default function InvoiceDetailPage() {
   };
 
   const subtotal = invoice.amount - (invoice.tax_amount || 0);
+  const vatRatePercentage = subtotal > 0 ? Math.round(((invoice.tax_amount || 0) / subtotal) * 100) : 18;
 
   const handleShare = async () => {
     if (!invoice) return;
@@ -209,7 +210,7 @@ export default function InvoiceDetailPage() {
                   <span className="font-medium text-slate-900">{formatFCFA(subtotal)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">TVA (18%)</span>
+                  <span className="text-slate-500">TVA ({vatRatePercentage}%)</span>
                   <span className="font-medium text-slate-900">{formatFCFA(invoice.tax_amount || 0)}</span>
                 </div>
                 <div className="pt-3 border-t border-slate-200 flex justify-between">
@@ -337,7 +338,7 @@ export default function InvoiceDetailPage() {
             <span className="font-medium text-slate-900">{formatFCFA(subtotal)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-slate-500">TVA (18%)</span>
+            <span className="text-slate-500">TVA ({vatRatePercentage}%)</span>
             <span className="font-medium text-slate-900">{formatFCFA(invoice.tax_amount || 0)}</span>
           </div>
           <div className="pt-3 border-t-2 border-slate-900 flex justify-between">
