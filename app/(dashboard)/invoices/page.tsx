@@ -8,11 +8,11 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import { formatFCFA, formatDate } from '@/lib/format';
-import { Plus, Search, Eye, Loader2 } from 'lucide-react';
+import { Plus, Search, Eye, Trash2, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/utils/supabase/client';
-import { getInvoices, updateInvoiceStatus, InvoiceWithClient } from '@/lib/api/invoices';
+import { getInvoices, updateInvoiceStatus, deleteInvoice, InvoiceWithClient } from '@/lib/api/invoices';
 import { Database } from '@/lib/database.types';
 
 export default function InvoicesPage() {
@@ -45,6 +45,19 @@ export default function InvoicesPage() {
       setInvoices(invoices.map(inv => inv.id === id ? { ...inv, status: newStatus } : inv));
     } catch (error) {
       console.error('Error updating status:', error);
+    }
+  };
+
+  const handleDeleteInvoice = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer la facture ${id} ?`)) return;
+
+    try {
+      await deleteInvoice(supabase, id);
+      setInvoices(invoices.filter(inv => inv.id !== id));
+    } catch (error) {
+      console.error('Error deleting invoice:', error);
+      alert("Erreur lors de la suppression de la facture.");
     }
   };
 
@@ -144,10 +157,27 @@ export default function InvoicesPage() {
                       <option value="overdue">En Retard</option>
                     </select>
                   </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 group-hover:bg-blue-50">
-                      <Eye size={16} />
-                    </Button>
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex justify-end gap-1">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                        onClick={() => router.push(`/invoices/${invoice.id}`)}
+                        title="Voir la facture"
+                      >
+                        <Eye size={16} />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={(e) => handleDeleteInvoice(e, invoice.id)}
+                        title="Supprimer la facture"
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

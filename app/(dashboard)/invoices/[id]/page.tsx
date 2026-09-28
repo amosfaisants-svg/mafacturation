@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { formatFCFA, formatDate } from '@/lib/format';
 import { ArrowLeft, Printer, Send, Edit2, Trash2, Loader2, FileText } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
-import { getInvoiceById, InvoiceWithDetails } from '@/lib/api/invoices';
+import { getInvoiceById, deleteInvoice, InvoiceWithDetails } from '@/lib/api/invoices';
 import { getSettings } from '@/lib/api/settings';
 
 export default function InvoiceDetailPage() {
@@ -22,6 +22,7 @@ export default function InvoiceDetailPage() {
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isSharing, setIsSharing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (invoiceId) {
@@ -42,6 +43,21 @@ export default function InvoiceDetailPage() {
       console.error('Error fetching invoice:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!invoice) return;
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer la facture ${invoice.id} ?`)) return;
+
+    try {
+      setIsDeleting(true);
+      await deleteInvoice(supabase, invoice.id);
+      router.push('/invoices');
+    } catch (error) {
+      console.error('Error deleting invoice:', error);
+      alert("Erreur lors de la suppression de la facture.");
+      setIsDeleting(false);
     }
   };
 
@@ -88,11 +104,9 @@ export default function InvoiceDetailPage() {
         const element = document.getElementById('invoice-print-container');
         
         if (element) {
-          // Temporairement afficher l'élément pour html2pdf
           element.classList.remove('hidden');
           element.classList.add('block');
           
-          // Import dynamique car html2pdf utilise window/document
           // @ts-ignore
           const html2pdf = (await import('html2pdf.js')).default;
           
@@ -118,7 +132,6 @@ export default function InvoiceDetailPage() {
               text: text,
             });
           } else {
-            // Partage simple si le partage de fichier n'est pas supporté (vieux tel, certains navigateurs PC)
             await navigator.share({
               title: `Facture ${invoice.id}`,
               text: text,
@@ -131,7 +144,6 @@ export default function InvoiceDetailPage() {
         setIsSharing(false);
       }
     } else {
-      // Fallback (mailto) si la Web Share API n'est pas supportée
       const mailtoLink = `mailto:${invoice.clients?.email || ''}?subject=Facture ${invoice.id}&body=${encodeURIComponent(text)}`;
       window.location.href = mailtoLink;
     }
@@ -160,6 +172,15 @@ export default function InvoiceDetailPage() {
           <Button variant="outline" onClick={handleShare} disabled={isSharing}>
             {isSharing ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Send size={16} className="mr-2" />} 
             {isSharing ? 'Préparation...' : 'Envoyer'}
+          </Button>
+          <Button 
+            variant="outline" 
+            className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
+            onClick={handleDelete}
+            disabled={isDeleting}
+          >
+            {isDeleting ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Trash2 size={16} className="mr-2" />}
+            Supprimer
           </Button>
         </div>
       </div>

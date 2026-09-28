@@ -140,3 +140,26 @@ export async function updateInvoice(
 
   return invoice;
 }
+
+export async function deleteInvoice(supabase: SupabaseClient<Database>, id: string) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // First delete invoice items
+  const { error: itemsError } = await supabase
+    .from('invoice_items')
+    .delete()
+    .eq('invoice_id', id);
+
+  if (itemsError) throw itemsError;
+
+  // Then delete invoice
+  const { error } = await supabase
+    .from('invoices')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.id);
+
+  if (error) throw error;
+}
+
