@@ -5,12 +5,12 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
-import { Select } from '@/components/ui/Select';
+import { ClientCombobox } from '@/components/ui/ClientCombobox';
 import { formatFCFA, formatDate } from '@/lib/format';
 import { ArrowLeft, Trash2, Plus, Send, Save, FileText, CheckCircle2, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
-import { getClients } from '@/lib/api/clients';
+import { getClients, createClient as apiCreateClient } from '@/lib/api/clients';
 import { createInvoice } from '@/lib/api/invoices';
 import { getSettings } from '@/lib/api/settings';
 import { Database } from '@/lib/database.types';
@@ -27,6 +27,7 @@ export default function CreateInvoicePage() {
   const [isSaving, setIsSaving] = useState(false);
 
   const [clientId, setClientId] = useState('');
+  const [customClientName, setCustomClientName] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [dueDate, setDueDate] = useState('');
   const [items, setItems] = useState([
@@ -78,19 +79,39 @@ export default function CreateInvoicePage() {
   const total = useMemo(() => subtotal + taxAmount, [subtotal, taxAmount]);
 
   const handleSave = async (status: 'draft' | 'sent' = 'sent') => {
-    if (!clientId || !date || !dueDate || items.length === 0) {
+    const hasClient = clientId || customClientName.trim();
+    if (!hasClient || !date || !dueDate || items.length === 0) {
       alert("Veuillez remplir tous les champs obligatoires.");
       return;
     }
 
     try {
       setIsSaving(true);
+      let targetClientId = clientId;
+
+      if (!targetClientId && customClientName.trim()) {
+        const existing = clients.find(c => c.name.toLowerCase().trim() === customClientName.toLowerCase().trim());
+        if (existing) {
+          targetClientId = existing.id;
+        } else {
+          const newClient = await apiCreateClient(supabase, {
+            name: customClientName.trim(),
+            email: '',
+            phone: '',
+            address: ''
+          });
+          targetClientId = newClient.id;
+          setClients(prev => [newClient, ...prev]);
+          setClientId(newClient.id);
+        }
+      }
+
       // Generate ID like FAC-2026-0012
       const newId = `FAC-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
       
       const invoiceData = {
         id: newId,
-        client_id: clientId,
+        client_id: targetClientId,
         date: date,
         due_date: dueDate,
         amount: total,
@@ -123,7 +144,23 @@ export default function CreateInvoicePage() {
     }, 100);
   };
   
-  const selectedClient = clients.find(c => c.id === clientId);
+  const selectedClient = useMemo(() => {
+    if (clientId) {
+      return clients.find(c => c.id === clientId) || null;
+    }
+    if (customClientName.trim()) {
+      return {
+        id: '',
+        user_id: '',
+        name: customClientName.trim(),
+        email: '',
+        phone: '',
+        address: '',
+        created_at: ''
+      } as ClientRow;
+    }
+    return null;
+  }, [clientId, customClientName, clients]);
 
   const addItem = () => {
     setItems([...items, { id: Date.now().toString(), description: '', quantity: 1, unitPrice: 0 }]);
@@ -165,12 +202,15 @@ export default function CreateInvoicePage() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Client</Label>
-                <Select value={clientId} onChange={e => setClientId(e.target.value)}>
-                  <option value="">Sélectionner un client...</option>
-                  {clients.map(client => (
-                    <option key={client.id} value={client.id}>{client.name}</option>
-                  ))}
-                </Select>
+                <ClientCombobox
+                  clients={clients}
+                  selectedClientId={clientId}
+                  customClientName={customClientName}
+                  onChange={(id, name) => {
+                    setClientId(id);
+                    setCustomClientName(name);
+                  }}
+                />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
