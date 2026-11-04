@@ -69,7 +69,7 @@ export function ReceiptModal({
 
   useEffect(() => {
     if (isOpen && invoice) {
-      const existingHistory = getInvoiceReceiptHistory(invoice.id, invoice.amount);
+      const existingHistory = getInvoiceReceiptHistory(invoice);
       setHistory(existingHistory);
       setRemainingAmount(invoice.amount);
       setAmountInput('');
@@ -78,13 +78,7 @@ export function ReceiptModal({
       setPdfBlob(null);
       setPdfUrl(null);
       setClientPhone(invoice.clients?.phone || '');
-
-      // If the invoice is already at 0 FCFA and has payments, go directly to the PDF recap
-      if (invoice.amount === 0 && existingHistory.payments.length > 0) {
-        setStep('pdf');
-      } else {
-        setStep('form');
-      }
+      setStep('form');
 
       getSettings(supabase)
         .then((data) => setSettings(data))
@@ -168,7 +162,7 @@ export function ReceiptModal({
 
       const result = await recordInvoicePayment(
         supabase,
-        invoice.id,
+        invoice,
         invoice.amount,
         numericAmount,
         paymentDate
@@ -383,10 +377,10 @@ export function ReceiptModal({
                   {formatFCFA(invoice.amount)}
                 </span>
               </div>
-              {history && history.payments.length > 0 && (
+              {((history && history.payments.length > 0) || invoice.amount === 0) && (
                 <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-xs text-slate-500">
                   <span>
-                    {history.payments.length} versement(s) déjà enregistré(s)
+                    {Math.max(1, history?.payments.length || 0)} versement(s) déjà enregistré(s)
                   </span>
                   <button
                     type="button"

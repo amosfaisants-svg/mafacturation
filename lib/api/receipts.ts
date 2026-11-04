@@ -58,24 +58,50 @@ export function getInvoiceOriginalAmount(invoice: InvoiceWithClient): number {
   return invoice.amount;
 }
 
-export function getInvoiceReceiptHistory(invoiceId: string, currentInvoiceAmount: number): InvoiceReceiptHistory {
+export function getInvoiceReceiptHistory(
+  invoiceOrId: InvoiceWithClient | string,
+  currentInvoiceAmount?: number
+): InvoiceReceiptHistory {
+  const isObj = typeof invoiceOrId !== 'string';
+  const invoiceId = isObj ? invoiceOrId.id : invoiceOrId;
+  const remaining = isObj ? invoiceOrId.amount : (currentInvoiceAmount ?? 0);
+  const originalAmount = isObj ? getInvoiceOriginalAmount(invoiceOrId) : remaining;
+
   const map = getLocalReceiptMap();
   const existing = map[invoiceId];
 
-  if (existing) {
+  if (existing && existing.payments.length > 0) {
     return existing;
+  }
+
+  // If the invoice already has a paid difference (e.g. remaining < originalAmount or remaining === 0)
+  const paidDiff = Math.max(0, originalAmount - remaining);
+  if (paidDiff > 0 || remaining === 0) {
+    const reconstructedPayment: PaymentRecord = {
+      id: `REC-INIT-${invoiceId}`,
+      invoice_id: invoiceId,
+      amount: paidDiff > 0 ? paidDiff : originalAmount,
+      date: isObj && invoiceOrId.date ? invoiceOrId.date : new Date().toISOString().split('T')[0],
+      remaining_after: remaining,
+    };
+
+    return {
+      invoice_id: invoiceId,
+      initial_amount: originalAmount,
+      payments: [reconstructedPayment],
+    };
   }
 
   return {
     invoice_id: invoiceId,
-    initial_amount: currentInvoiceAmount,
+    initial_amount: originalAmount,
     payments: [],
   };
 }
 
 export async function recordInvoicePayment(
   supabase: SupabaseClient<Database>,
-  invoiceId: string,
+  invoice: InvoiceWithClient,
   currentAmountInColumn: number,
   paymentAmount: number,
   paymentDate: string
@@ -84,6 +110,7 @@ export async function recordInvoicePayment(
   newRemainingAmount: number;
   newStatus?: Database['public']['Tables']['invoices']['Row']['status'];
 }> {
+  const invoiceId = invoice.id;
   if (paymentAmount <= 0) {
     throw new Error('Le montant doit être supérieur à 0.');
   }
@@ -93,11 +120,11 @@ export async function recordInvoicePayment(
 
   const newRemainingAmount = Math.max(0, currentAmountInColumn - paymentAmount);
   const map = getLocalReceiptMap();
-  const existing = map[invoiceId];
+  const currentHistory = getInvoiceReceiptHistory(invoice, currentAmountInColumn);
 
-  const previousPayments = existing?.payments || [];
+  const previousPayments = currentHistory.payments || [];
   const sumPreviousPayments = previousPayments.reduce((sum, p) => sum + p.amount, 0);
-  const initialAmount = existing?.initial_amount ?? (currentAmountInColumn + sumPreviousPayments);
+  const initialAmount = currentHistory.initial_amount || (currentAmountInColumn + sumPreviousPayments);
 
   const newPayment: PaymentRecord = {
     id: `REC-${Date.now()}`,
