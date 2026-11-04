@@ -86,10 +86,10 @@ export default function HeroSection({ onPlayVideo }: { onPlayVideo: () => void }
           <div className="flex items-center justify-between mb-1.5">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-primary-container text-on-primary flex items-center justify-center font-bold text-body-sm">
-                DT
+                AT
               </div>
               <div>
-                <p className="font-label-md text-label-md font-semibold text-on-surface leading-tight">Dakar Tech SARL</p>
+                <p className="font-label-md text-label-md font-semibold text-on-surface leading-tight">Amos Tech SARL</p>
                 <p className="font-body-sm text-body-sm text-on-surface-variant">Facture #FAC-2025-084</p>
               </div>
             </div>

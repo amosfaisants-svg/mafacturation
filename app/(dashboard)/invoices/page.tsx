@@ -7,18 +7,21 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
+import { ReceiptModal } from '@/components/ui/ReceiptModal';
 import { formatFCFA, formatDate } from '@/lib/format';
-import { Plus, Search, Eye, Trash2, Loader2 } from 'lucide-react';
+import { Plus, Search, Eye, Trash2, Loader2, Receipt } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/utils/supabase/client';
 import { getInvoices, updateInvoiceStatus, deleteInvoice, InvoiceWithClient } from '@/lib/api/invoices';
+import { getInvoiceOriginalAmount } from '@/lib/api/receipts';
 import { Database } from '@/lib/database.types';
 
 export default function InvoicesPage() {
   const router = useRouter();
   const supabase = createClient();
   const [invoices, setInvoices] = useState<InvoiceWithClient[]>([]);
+  const [selectedReceiptInvoice, setSelectedReceiptInvoice] = useState<InvoiceWithClient | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
@@ -46,6 +49,25 @@ export default function InvoicesPage() {
     } catch (error) {
       console.error('Error updating status:', error);
     }
+  };
+
+  const handlePaymentRecorded = (
+    invoiceId: string,
+    newRemainingAmount: number,
+    newStatus?: Database['public']['Tables']['invoices']['Row']['status']
+  ) => {
+    setInvoices(prev =>
+      prev.map(inv =>
+        inv.id === invoiceId
+          ? { ...inv, amount: newRemainingAmount, ...(newStatus ? { status: newStatus } : {}) }
+          : inv
+      )
+    );
+    setSelectedReceiptInvoice(prev =>
+      prev && prev.id === invoiceId
+        ? { ...prev, amount: newRemainingAmount, ...(newStatus ? { status: newStatus } : {}) }
+        : prev
+    );
   };
 
   const handleDeleteInvoice = async (e: React.MouseEvent, id: string) => {
@@ -121,7 +143,8 @@ export default function InvoicesPage() {
                 <TableHead>N° Facture</TableHead>
                 <TableHead>Client</TableHead>
                 <TableHead>Date d&apos;émission</TableHead>
-                <TableHead className="text-right">Montant</TableHead>
+                <TableHead className="text-right">MONTANT</TableHead>
+                <TableHead className="text-right">A PAYER</TableHead>
                 <TableHead className="text-right">Statut</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -136,6 +159,9 @@ export default function InvoicesPage() {
                   <TableCell className="font-medium text-slate-900">{invoice.id}</TableCell>
                   <TableCell className="text-slate-600">{invoice.clients?.name}</TableCell>
                   <TableCell className="text-slate-600">{formatDate(invoice.date)}</TableCell>
+                  <TableCell className="text-slate-900 font-medium text-right">
+                    {formatFCFA(getInvoiceOriginalAmount(invoice))}
+                  </TableCell>
                   <TableCell className="text-slate-900 font-medium text-right">
                     {formatFCFA(invoice.amount)}
                   </TableCell>
@@ -158,7 +184,17 @@ export default function InvoicesPage() {
                     </select>
                   </TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex justify-end gap-1">
+                    <div className="flex justify-end items-center gap-1.5">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSelectedReceiptInvoice(invoice)}
+                        className="h-8 px-2.5 text-xs font-medium text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                      >
+                        <Receipt size={14} className="mr-1.5" />
+                        Reçu
+                      </Button>
                       <Button 
                         variant="ghost" 
                         size="icon" 
@@ -183,7 +219,7 @@ export default function InvoicesPage() {
               ))}
               {filteredInvoices.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center text-slate-500">
+                  <TableCell colSpan={7} className="h-24 text-center text-slate-500">
                     Aucune facture trouvée.
                   </TableCell>
                 </TableRow>
@@ -192,6 +228,13 @@ export default function InvoicesPage() {
           </Table>
         </div>
       </Card>
+
+      <ReceiptModal
+        invoice={selectedReceiptInvoice}
+        isOpen={!!selectedReceiptInvoice}
+        onClose={() => setSelectedReceiptInvoice(null)}
+        onPaymentRecorded={handlePaymentRecorded}
+      />
     </div>
   );
 }

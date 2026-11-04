@@ -2,16 +2,20 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { ReceiptModal } from '@/components/ui/ReceiptModal';
 import { formatFCFA, formatDate } from '@/lib/format';
-import { Wallet, TrendingUp, Clock, AlertCircle, Loader2 } from 'lucide-react';
+import { Wallet, TrendingUp, Clock, AlertCircle, Loader2, Receipt } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/utils/supabase/client';
 import { getDashboardStats } from '@/lib/api/dashboard';
 import { getInvoices, updateInvoiceStatus, InvoiceWithClient } from '@/lib/api/invoices';
+import { getInvoiceOriginalAmount } from '@/lib/api/receipts';
 import { Database } from '@/lib/database.types';
 
 export default function DashboardPage() {
   const [invoices, setInvoices] = useState<InvoiceWithClient[]>([]);
+  const [selectedReceiptInvoice, setSelectedReceiptInvoice] = useState<InvoiceWithClient | null>(null);
   const [stats, setStats] = useState({ totalInvoiced: 0, totalPaid: 0, totalPending: 0, totalOverdue: 0 });
   const [loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(false);
@@ -61,6 +65,26 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Error updating status:', error);
     }
+  };
+
+  const handlePaymentRecorded = (
+    invoiceId: string,
+    newRemainingAmount: number,
+    newStatus?: Database['public']['Tables']['invoices']['Row']['status']
+  ) => {
+    setInvoices(prev =>
+      prev.map(inv =>
+        inv.id === invoiceId
+          ? { ...inv, amount: newRemainingAmount, ...(newStatus ? { status: newStatus } : {}) }
+          : inv
+      )
+    );
+    setSelectedReceiptInvoice(prev =>
+      prev && prev.id === invoiceId
+        ? { ...prev, amount: newRemainingAmount, ...(newStatus ? { status: newStatus } : {}) }
+        : prev
+    );
+    fetchData(true);
   };
 
   const statCards = [
@@ -162,8 +186,10 @@ export default function DashboardPage() {
                   <th className="px-4 py-3 font-medium">N° Facture</th>
                   <th className="px-4 py-3 font-medium">Client</th>
                   <th className="px-4 py-3 font-medium">Date d&apos;émission</th>
-                  <th className="px-4 py-3 font-medium text-right">Montant</th>
+                  <th className="px-4 py-3 font-medium text-right">MONTANT</th>
+                  <th className="px-4 py-3 font-medium text-right">A PAYER</th>
                   <th className="px-4 py-3 font-medium text-right">Statut</th>
+                  <th className="px-4 py-3 font-medium text-right">Reçu</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -172,6 +198,9 @@ export default function DashboardPage() {
                     <td className="px-4 py-4 font-medium text-slate-900">{invoice.id}</td>
                     <td className="px-4 py-4 text-slate-600">{invoice.clients?.name}</td>
                     <td className="px-4 py-4 text-slate-600">{formatDate(invoice.date)}</td>
+                    <td className="px-4 py-4 text-slate-900 font-medium text-right">
+                      {formatFCFA(getInvoiceOriginalAmount(invoice))}
+                    </td>
                     <td className="px-4 py-4 text-slate-900 font-medium text-right">
                       {formatFCFA(invoice.amount)}
                     </td>
@@ -193,11 +222,23 @@ export default function DashboardPage() {
                         <option value="overdue">En Retard</option>
                       </select>
                     </td>
+                    <td className="px-4 py-4 text-right">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSelectedReceiptInvoice(invoice)}
+                        className="h-8 px-3 text-xs font-medium text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                      >
+                        <Receipt size={14} className="mr-1.5" />
+                        Reçu
+                      </Button>
+                    </td>
                   </tr>
                 ))}
                 {invoices.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                    <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
                       Aucune facture récente
                     </td>
                   </tr>
@@ -207,6 +248,13 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      <ReceiptModal
+        invoice={selectedReceiptInvoice}
+        isOpen={!!selectedReceiptInvoice}
+        onClose={() => setSelectedReceiptInvoice(null)}
+        onPaymentRecorded={handlePaymentRecorded}
+      />
     </div>
   );
 }

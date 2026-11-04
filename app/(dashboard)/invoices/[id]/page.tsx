@@ -10,6 +10,7 @@ import { formatFCFA, formatDate } from '@/lib/format';
 import { ArrowLeft, Printer, Send, Edit2, Trash2, Loader2, FileText } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { getInvoiceById, deleteInvoice, InvoiceWithDetails } from '@/lib/api/invoices';
+import { getInvoiceOriginalAmount } from '@/lib/api/receipts';
 import { getSettings } from '@/lib/api/settings';
 
 export default function InvoiceDetailPage() {
@@ -90,13 +91,14 @@ export default function InvoiceDetailPage() {
     }
   };
 
-  const subtotal = invoice.amount - (invoice.tax_amount || 0);
+  const originalAmount = getInvoiceOriginalAmount(invoice);
+  const subtotal = originalAmount - (invoice.tax_amount || 0);
   const vatRatePercentage = subtotal > 0 ? Math.round(((invoice.tax_amount || 0) / subtotal) * 100) : 18;
 
   const handleShare = async () => {
     if (!invoice) return;
     
-    const text = `Bonjour,\n\nVoici les détails de votre facture ${invoice.id} d'un montant total de ${formatFCFA(invoice.amount)}.\nDate d'échéance : ${formatDate(invoice.due_date)}.\n\nMerci de votre confiance.`;
+    const text = `Bonjour,\n\nVoici les détails de votre facture ${invoice.id} d'un montant total de ${formatFCFA(originalAmount)}.\nDate d'échéance : ${formatDate(invoice.due_date)}.\n\nMerci de votre confiance.`;
     
     if (navigator.share && navigator.canShare) {
       try {
@@ -236,7 +238,7 @@ export default function InvoiceDetailPage() {
                 </div>
                 <div className="pt-3 border-t border-slate-200 flex justify-between">
                   <span className="font-bold text-slate-900">Total TTC</span>
-                  <span className="font-bold text-xl text-blue-600">{formatFCFA(invoice.amount)}</span>
+                  <span className="font-bold text-xl text-blue-600">{formatFCFA(originalAmount)}</span>
                 </div>
               </div>
             </CardContent>
@@ -364,7 +366,7 @@ export default function InvoiceDetailPage() {
           </div>
           <div className="pt-3 border-t-2 border-slate-900 flex justify-between">
             <span className="font-bold text-slate-900 text-base">Total TTC</span>
-            <span className="font-bold text-lg text-slate-900">{formatFCFA(invoice.amount)}</span>
+            <span className="font-bold text-lg text-slate-900">{formatFCFA(originalAmount)}</span>
           </div>
         </div>
 

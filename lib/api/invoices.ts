@@ -4,6 +4,7 @@ import { Database } from '../database.types';
 
 export type InvoiceWithClient = Database['public']['Tables']['invoices']['Row'] & {
   clients: Database['public']['Tables']['clients']['Row'];
+  invoice_items?: Database['public']['Tables']['invoice_items']['Row'][];
 };
 
 export type InvoiceWithDetails = InvoiceWithClient & {
@@ -15,7 +16,8 @@ export async function getInvoices(supabase: SupabaseClient<Database>, startDate?
     .from('invoices')
     .select(`
       *,
-      clients (*)
+      clients (*),
+      invoice_items (*)
     `)
     .order('created_at', { ascending: false });
 
